@@ -5,21 +5,21 @@ import (
 	"fmt"
 )
 
-func (gs *GameState) CommandSpawn(words []string) error {
+func (gs *GameState) CommandSpawn(words []string) (int, error) {
 	if len(words) < 3 {
-		return errors.New("usage: spawn <location> <rank>")
+		return 0, errors.New("usage: spawn <location> <rank>")
 	}
 
 	locationName := words[1]
 	locations := getAllLocations()
 	if _, ok := locations[Location(locationName)]; !ok {
-		return fmt.Errorf("error: %s is not a valid location", locationName)
+		return 0, fmt.Errorf("error: %s is not a valid location", locationName)
 	}
 
 	rank := words[2]
 	units := getAllRanks()
 	if _, ok := units[UnitRank(rank)]; !ok {
-		return fmt.Errorf("error: %s is not a valid unit", rank)
+		return 0, fmt.Errorf("error: %s is not a valid unit", rank)
 	}
 
 	id := len(gs.getUnitsSnap()) + 1
@@ -30,5 +30,5 @@ func (gs *GameState) CommandSpawn(words []string) error {
 	})
 
 	fmt.Printf("Spawned a(n) %s in %s with id %v\n", rank, locationName, id)
-	return nil
+	return id, nil
 }
