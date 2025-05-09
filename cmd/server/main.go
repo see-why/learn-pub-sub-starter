@@ -83,5 +83,5 @@ func main() {
 
 	// Wait for a signal
 	<-sigChan
-	fmt.Println("\nReceived shutdown signal, closing connection...")
+	fmt.Println("\nReceived shutdown signal, closing server connection...")
 }
