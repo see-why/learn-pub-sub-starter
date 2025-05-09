@@ -63,7 +63,12 @@ func main() {
 				fmt.Println("Usage: spawn <location> <unit_type>")
 				continue
 			}
-			id := gameState.CommandSpawn(words[1:])
+			id, err := gameState.CommandSpawn(words)
+
+			if err != nil {
+				fmt.Printf("Error spawning unit: %s\n", err)
+				continue
+			}
 			fmt.Printf("Unit spawned with ID: %d\n", id)
 
 		case "move":
@@ -71,7 +76,7 @@ func main() {
 				fmt.Println("Usage: move <location> <unit_id>")
 				continue
 			}
-			move, err := gameState.CommandMove(words[1:])
+			move, err := gameState.CommandMove(words)
 			if err != nil {
 				fmt.Printf("Error moving unit: %s\n", err)
 				continue
