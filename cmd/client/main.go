@@ -36,13 +36,11 @@ func main() {
 		routing.ExchangePerilDirect,
 		queueName,
 		routing.PauseKey,
-		int(pubsub.SimpleQueueType(1)),
+		pubsub.Transient,
 	)
 	if err != nil {
 		log.Fatalf("Failed to declare and bind queue: %s\n", err)
 	}
 
 	fmt.Printf("Queue %s declared and bound\n", queueName)
-
-	gamelogic.ClientWelcome()
 }
