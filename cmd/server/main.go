@@ -30,6 +30,21 @@ func main() {
 	defer channel.Close()
 	fmt.Println("Channel opened")
 
+	routingKey := fmt.Sprintf("%s.*", routing.GameLogSlug)
+	queueName := "game_logs"
+
+	_, _, err = pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic,
+		queueName,
+		routingKey,
+		pubsub.Durable,
+	)
+	if err != nil {
+		log.Fatalf("Failed to declare and bind queue: %s\n", err)
+	}
+	fmt.Printf("Queue %s declared and bound\n", queueName)
+
 	gamelogic.PrintServerHelp()
 
 	for {
