@@ -34,6 +34,14 @@ func main() {
 
 	gamelogic.PrintServerHelp()
 
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	
+	defer signal.Stop(sigChan)
+
+	<-sigChan
+	fmt.Println("\nReceived shutdown signal, closing server connection...")
+
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
@@ -42,7 +50,7 @@ func main() {
 
 		if words[0] == "quit" {
 			fmt.Println("Quitting...")
-			break
+			os.Exit(0)
 		}
 
 		if words[0] == "pause" {
@@ -51,7 +59,8 @@ func main() {
 			})
 		
 			if err != nil {
-				log.Fatalf("Failed to publish message: %s\n", err)
+				log.Printf("Failed to publish message: %s\n", err)
+				continue
 			}
 			fmt.Println("Message published")
 
@@ -64,7 +73,8 @@ func main() {
 				IsPaused: false,
 			})
 			if err != nil {
-				log.Fatalf("Failed to publish message: %s\n", err)
+				log.Printf("Failed to publish message: %s\n", err)
+				continue
 			}
 			fmt.Println("Message published")
 
@@ -74,14 +84,4 @@ func main() {
 
 		fmt.Println("I do not understand that command")
 	}
-
-	// Create a channel to receive OS signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	defer signal.Stop(sigChan)
-
-	// Wait for a signal
-	<-sigChan
-	fmt.Println("\nReceived shutdown signal, closing server connection...")
 }
