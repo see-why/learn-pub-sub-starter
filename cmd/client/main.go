@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -43,4 +44,55 @@ func main() {
 	}
 
 	fmt.Printf("Queue %s declared and bound\n", queueName)
+
+	// Create new game state
+	gameState := gamelogic.NewGameState(username)
+
+	// REPL loop
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+
+		command := strings.ToLower(words[0])
+
+		switch command {
+		case "spawn":
+			if len(words) != 3 {
+				fmt.Println("Usage: spawn <location> <unit_type>")
+				continue
+			}
+			id := gameState.CommandSpawn(words[1:])
+			fmt.Printf("Unit spawned with ID: %d\n", id)
+
+		case "move":
+			if len(words) != 3 {
+				fmt.Println("Usage: move <location> <unit_id>")
+				continue
+			}
+			move, err := gameState.CommandMove(words[1:])
+			if err != nil {
+				fmt.Printf("Error moving unit: %s\n", err)
+				continue
+			}
+			fmt.Printf("Units moved to %s\n", move.ToLocation)
+
+		case "status":
+			gameState.CommandStatus()
+
+		case "help":
+			gamelogic.PrintClientHelp()
+
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+
+		default:
+			fmt.Println("Unknown command. Type 'help' for available commands.")
+		}
+	}
 }
