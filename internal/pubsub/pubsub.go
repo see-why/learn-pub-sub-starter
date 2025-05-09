@@ -42,11 +42,13 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 		return nil, amqp.Queue{}, fmt.Errorf("failed to open channel: %w", err)
 	}
 
+	isTransient := simpleQueueType == Transient
+
 	queue, err := chn.QueueDeclare(
 		queueName,
 		simpleQueueType == Durable,
-		simpleQueueType == Transient,
-		simpleQueueType == Transient,
+		isTransient,
+		isTransient,
 		false,
 		nil,
 	)
