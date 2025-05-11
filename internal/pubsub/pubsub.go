@@ -71,3 +71,39 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 
 	return chn, queue, nil
 }
+
+func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, Key string, simpleQueueType SimpleQueueType, handler func(T)) error {
+	chn, queue, err := DeclareAndBind(conn, exchange, queueName, Key, simpleQueueType)
+	if err != nil {
+		return fmt.Errorf("failed to declare and bind: %w", err)
+	}
+
+	msgs, err := chn.Consume(
+		queue.Name,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to register consumer: %w", err)
+	}
+
+	go func() {
+		for msg := range msgs {
+			var val T
+			err := json.Unmarshal(msg.Body, &val)
+			if err != nil {
+				fmt.Printf("failed to parse message: %v\n", err)
+				continue
+			}
+			handler(val)
+			msg.Ack(false)
+		}
+	}()
+
+	return nil
+}
