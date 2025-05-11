@@ -21,6 +21,13 @@ func main() {
 	}
 	defer conn.Close()
 
+	channel, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel: %s\n", err)
+	}
+
+	defer channel.Close()
+
 	fmt.Println("Connected to RabbitMQ")
 
 	username, err := gamelogic.ClientWelcome()
@@ -110,11 +117,6 @@ func main() {
 				continue
 			}
 			fmt.Printf("Units moved to %s\n", move.ToLocation)
-
-			channel, err := conn.Channel()
-			if err != nil {
-				log.Fatalf("Failed to open a channel: %s\n", err)
-			}
 
 			err = pubsub.PublishJSON(channel, routing.ExchangePerilTopic, armyQueuesRoutingKey, move)
 			if err != nil {
