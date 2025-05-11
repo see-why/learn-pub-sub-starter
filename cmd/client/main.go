@@ -47,6 +47,11 @@ func main() {
 
 	// Create new game state
 	gameState := gamelogic.NewGameState(username)
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.Transient, handlerPause(gameState))
+
+	if err != nil {
+		log.Fatalf("Failed to subscribe to queue: %s\n", err)
+	}
 
 	// REPL loop
 	for {
@@ -99,5 +104,13 @@ func main() {
 		default:
 			fmt.Println("Unknown command. Type 'help' for available commands.")
 		}
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(ps routing.PlayingState) {
+		defer fmt.Print("> ")
+
+		gs.HandlePause(ps)
 	}
 }
