@@ -57,7 +57,7 @@ func main() {
 		pubsub.Transient,
 	)
 	if err != nil {
-		log.Fatalf("Failed to declare and bind queue %s: %s\n", queueName, err)
+		log.Fatalf("Failed to declare and bind queue %s: %s\n", armyMovesQueue, err)
 	}
 
 	fmt.Printf("Queue %s declared and bound\n", armyMovesQueue)
