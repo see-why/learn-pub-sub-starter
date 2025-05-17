@@ -38,7 +38,6 @@ func main() {
 	fmt.Printf("Welcome, %s!\n", username)
 
 	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, username)
-
 	_, _, err = pubsub.DeclareAndBind(
 		conn,
 		routing.ExchangePerilDirect,
@@ -54,7 +53,7 @@ func main() {
 
 	armyMovesRoutingKey := fmt.Sprintf("%s.*", routing.ArmyMovesPrefix)
 	armyMovesQueue := fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, username)
-	armyQueuesRoutingKey := armyMovesQueue 
+	armyQueuesRoutingKey := armyMovesQueue
 
 	_, _, err = pubsub.DeclareAndBind(
 		conn,
@@ -69,6 +68,23 @@ func main() {
 
 	fmt.Printf("Queue %s declared and bound\n", armyMovesQueue)
 
+	warQueueRoutingKey := fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix)
+	warSubscriptionRoutingKey := fmt.Sprintf("%s.%s", routing.WarRecognitionsPrefix, username)
+	_, _, err = pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		warQueueRoutingKey,
+		pubsub.Durable,
+	)
+	if err != nil {
+		log.Fatalf("Failed to declare and bind queue %s: %s\n", routing.WarRecognitionsPrefix, err)
+	}
+
+	fmt.Printf("Queue %s declared and bound\n", routing.WarRecognitionsPrefix)
+
+	// Subscribe to war queue (durable, shared by all clients)
+
 	// Create new game state
 	gameState := gamelogic.NewGameState(username)
 	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.Transient, handlerPause(gameState))
@@ -77,9 +93,14 @@ func main() {
 		log.Fatalf("Failed to subscribe to queue: %s\n", err)
 	}
 
-	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, armyMovesQueue, armyMovesRoutingKey, pubsub.Transient, handlerMove(gameState))
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, armyMovesQueue, armyMovesRoutingKey, pubsub.Transient, handlerMove(gameState, channel))
 	if err != nil {
 		log.Fatalf("Failed to subscribe to queue: %s\n", err)
+	}
+
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, routing.WarRecognitionsPrefix, warSubscriptionRoutingKey, pubsub.Durable, handlerWar(gameState))
+	if err != nil {
+		log.Fatalf("Failed to subscribe to war queue: %s\n", err)
 	}
 
 	// REPL loop
@@ -144,18 +165,62 @@ func main() {
 	}
 }
 
-func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
-	return func(ps routing.PlayingState) {
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.AckType {
+	return func(ps routing.PlayingState) pubsub.AckType {
 		defer fmt.Print("> ")
 
 		gs.HandlePause(ps)
+		return pubsub.Ack
 	}
 }
 
-func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
-	return func(am gamelogic.ArmyMove) {
+func handlerMove(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.ArmyMove) pubsub.AckType {
+	return func(am gamelogic.ArmyMove) pubsub.AckType {
 		defer fmt.Print("> ")
 
-		gs.HandleMove(am)
+		outCome := gs.HandleMove(am)
+
+		switch outCome {
+		case gamelogic.MoveOutcomeSamePlayer:
+			return pubsub.NackDiscard
+		case gamelogic.MoveOutcomeMakeWar:
+			// Publish war message
+			warKey := fmt.Sprintf("%s.%s", routing.WarRecognitionsPrefix, gs.GetUsername())
+			err := pubsub.PublishJSON(channel, routing.ExchangePerilTopic, warKey, am)
+			if err != nil {
+				fmt.Printf("Failed to publish war message: %v\n", err)
+				return pubsub.NackRequeue
+			}
+			return pubsub.Ack
+		case gamelogic.MoveOutComeSafe:
+			return pubsub.Ack
+		default:
+			fmt.Println("error: unknown move outcome")
+			return pubsub.NackDiscard
+		}
+	}
+}
+
+func handlerWar(gs *gamelogic.GameState) func(gamelogic.ArmyMove) pubsub.AckType {
+	return func(am gamelogic.ArmyMove) pubsub.AckType {
+		defer fmt.Print("> ")
+
+		// Convert ArmyMove to RecognitionOfWar
+		recognition := gamelogic.RecognitionOfWar{
+			Attacker: am.Player,
+			Defender: gs.GetPlayerSnap(),
+		}
+		outcome, _, _ := gs.HandleWar(recognition)
+		switch outcome {
+		case gamelogic.WarOutcomeNotInvolved:
+			return pubsub.NackDiscard
+		case gamelogic.WarOutcomeNoUnits:
+			return pubsub.NackDiscard
+		case gamelogic.WarOutcomeOpponentWon, gamelogic.WarOutcomeYouWon, gamelogic.WarOutcomeDraw:
+			return pubsub.Ack
+		default:
+			fmt.Println("error: unknown war outcome")
+			return pubsub.NackDiscard
+		}
 	}
 }
