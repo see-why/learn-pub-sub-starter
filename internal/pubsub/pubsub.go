@@ -118,7 +118,7 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, Key string
 				msg.Nack(false, true)
 				fmt.Printf("acktype: NackRequeue!. \n")
 			case NackDiscard:
-				msg.Nack(false, true)
+				msg.Nack(false, false)
 				fmt.Printf("acktype: NackDiscard!. \n")
 			default:
 				fmt.Printf("Unknown acktype!. \n")
