@@ -16,6 +16,14 @@ const (
 	Transient
 )
 
+type AckType int
+
+const (
+	Ack AckType = iota
+	NackRequeue
+	NackDiscard
+)
+
 func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	// Marshal the value to JSON
 	body, err := json.Marshal(val)
@@ -72,7 +80,7 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 	return chn, queue, nil
 }
 
-func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, Key string, simpleQueueType SimpleQueueType, handler func(T)) error {
+func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, Key string, simpleQueueType SimpleQueueType, handler func(T) (ackType AckType)) error {
 	chn, queue, err := DeclareAndBind(conn, exchange, queueName, Key, simpleQueueType)
 	if err != nil {
 		return fmt.Errorf("failed to declare and bind: %w", err)
@@ -100,8 +108,21 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, Key string
 				fmt.Printf("failed to parse message: %v\n", err)
 				continue
 			}
-			handler(val)
-			msg.Ack(false)
+			ackType := handler(val)
+
+			switch ackType {
+			case Ack:
+				msg.Ack(false)
+				fmt.Printf("acktype: Ack!. \n")
+			case NackRequeue:
+				msg.Nack(false, true)
+				fmt.Printf("acktype: NackRequeue!. \n")
+			case NackDiscard:
+				msg.Nack(false, true)
+				fmt.Printf("acktype: NackDiscard!. \n")
+			default:
+				fmt.Printf("Unknown acktype!. \n")
+			}
 		}
 	}()
 
