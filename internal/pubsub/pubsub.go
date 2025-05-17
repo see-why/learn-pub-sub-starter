@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -58,7 +59,9 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 		isTransient,
 		isTransient,
 		false,
-		nil,
+		amqp.Table{
+			"x-dead-letter-exchange": routing.ExchangePerilDeadLetter,
+		},
 	)
 
 	if err != nil {
