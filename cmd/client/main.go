@@ -167,6 +167,7 @@ func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) pubsub.AckTyp
 		case gamelogic.MoveOutComeSafe:
 			return pubsub.Ack
 		default:
+			fmt.Println("error: unknown move outcome")
 			return pubsub.NackDiscard
 		}
 	}
