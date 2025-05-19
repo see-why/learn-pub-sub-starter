@@ -228,12 +228,13 @@ func handlerWar(gs *gamelogic.GameState, channel *amqp.Channel) func(dw gamelogi
 			} else {
 				msg = fmt.Sprintf("%s won a war against %s", winner, loser)
 			}
+
 			logEntry := routing.GameLog{
 				CurrentTime: time.Now(),
 				Message:     msg,
-				Username:    am.Player.Username,
+				Username:    gs.Player.Username,
 			}
-			logKey := fmt.Sprintf("%s.%s", routing.GameLogSlug, am.Player.Username)
+			logKey := fmt.Sprintf("%s.%s", routing.GameLogSlug, gs.Player.Username)
 			err := pubsub.PublishGob(channel, routing.ExchangePerilTopic, logKey, logEntry)
 			if err != nil {
 				fmt.Printf("Failed to publish game log: %v\n", err)
