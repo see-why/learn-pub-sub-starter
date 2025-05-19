@@ -97,8 +97,16 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 	return chn, queue, nil
 }
 
-func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, Key string, simpleQueueType SimpleQueueType, handler func(T) (ackType AckType)) error {
-	chn, queue, err := DeclareAndBind(conn, exchange, queueName, Key, simpleQueueType)
+func subscribe[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	simpleQueueType SimpleQueueType,
+	handler func(T) AckType,
+	unmarshaller func([]byte) (T, error),
+) error {
+	chn, queue, err := DeclareAndBind(conn, exchange, queueName, key, simpleQueueType)
 	if err != nil {
 		return fmt.Errorf("failed to declare and bind: %w", err)
 	}
@@ -119,8 +127,7 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, Key string
 
 	go func() {
 		for msg := range msgs {
-			var val T
-			err := json.Unmarshal(msg.Body, &val)
+			val, err := unmarshaller(msg.Body)
 			if err != nil {
 				fmt.Printf("failed to parse message: %v\n", err)
 				continue
@@ -144,4 +151,21 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, Key string
 	}()
 
 	return nil
+}
+
+func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, simpleQueueType SimpleQueueType, handler func(T) AckType) error {
+	return subscribe(conn, exchange, queueName, key, simpleQueueType, handler, func(data []byte) (T, error) {
+		var val T
+		err := json.Unmarshal(data, &val)
+		return val, err
+	})
+}
+
+func SubscribeGob[T any](conn *amqp.Connection, exchange, queueName, key string, simpleQueueType SimpleQueueType, handler func(T) AckType) error {
+	return subscribe(conn, exchange, queueName, key, simpleQueueType, handler, func(data []byte) (T, error) {
+		var val T
+		dec := gob.NewDecoder(bytes.NewReader(data))
+		err := dec.Decode(&val)
+		return val, err
+	})
 }
