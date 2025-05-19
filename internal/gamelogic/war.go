@@ -14,6 +14,13 @@ const (
 	WarOutcomeDraw
 )
 
+// UnitPower represents the power level of different unit types
+var UnitPower = map[UnitRank]int{
+	RankArtillery: 10,
+	RankCavalry:   5,
+	RankInfantry:  1,
+}
+
 func (gs *GameState) HandleWar(rw RecognitionOfWar) (outcome WarOutcome, winner string, loser string) {
 	defer fmt.Println("------------------------")
 	fmt.Println()
@@ -22,84 +29,100 @@ func (gs *GameState) HandleWar(rw RecognitionOfWar) (outcome WarOutcome, winner 
 
 	player := gs.GetPlayerSnap()
 
-	if player.Username == rw.Defender.Username {
-		fmt.Printf("%s, you published the war.\n", player.Username)
+	// Validate war participants
+	if !isValidWarParticipant(player, rw) {
 		return WarOutcomeNotInvolved, "", ""
 	}
 
-	if player.Username != rw.Attacker.Username {
-		fmt.Printf("%s, you are not involved in this war.\n", player.Username)
-		return WarOutcomeNotInvolved, "", ""
-	}
-
+	// Find overlapping location
 	overlappingLocation := getOverlappingLocation(rw.Attacker, rw.Defender)
 	if overlappingLocation == "" {
 		fmt.Printf("Error! No units are in the same location. No war will be fought.\n")
 		return WarOutcomeNoUnits, "", ""
 	}
 
-	attackerUnits := []Unit{}
-	defenderUnits := []Unit{}
-	for _, unit := range rw.Attacker.Units {
-		if unit.Location == overlappingLocation {
-			attackerUnits = append(attackerUnits, unit)
-		}
-	}
-	for _, unit := range rw.Defender.Units {
-		if unit.Location == overlappingLocation {
-			defenderUnits = append(defenderUnits, unit)
-		}
-	}
+	// Get units at the overlapping location
+	attackerUnits := getUnitsAtLocation(rw.Attacker.Units, Location(overlappingLocation))
+	defenderUnits := getUnitsAtLocation(rw.Defender.Units, Location(overlappingLocation))
 
-	fmt.Printf("%s's units:\n", rw.Attacker.Username)
-	for _, unit := range attackerUnits {
-		fmt.Printf("  * %v\n", unit.Rank)
-	}
-	fmt.Printf("%s's units:\n", rw.Defender.Username)
-	for _, unit := range defenderUnits {
-		fmt.Printf("  * %v\n", unit.Rank)
-	}
-	attackerPower := unitsToPowerLevel(attackerUnits)
-	defenderPower := unitsToPowerLevel(defenderUnits)
+	// Display unit information
+	displayWarUnits(rw.Attacker.Username, attackerUnits)
+	displayWarUnits(rw.Defender.Username, defenderUnits)
+
+	// Calculate power levels
+	attackerPower := calculatePowerLevel(attackerUnits)
+	defenderPower := calculatePowerLevel(defenderUnits)
 	fmt.Printf("Attacker has a power level of %v\n", attackerPower)
 	fmt.Printf("Defender has a power level of %v\n", defenderPower)
+
+	// Determine war outcome
+	outcome, winner, loser = determineWarOutcome(attackerPower, defenderPower, rw, player.Username)
+
+	// Handle unit removal based on outcome
+	if outcome == WarOutcomeDraw || (outcome == WarOutcomeOpponentWon && player.Username == rw.Attacker.Username) {
+		gs.removeUnitsInLocation(overlappingLocation)
+		fmt.Printf("Your units in %s have been killed.\n", overlappingLocation)
+	}
+
+	return outcome, winner, loser
+}
+
+func isValidWarParticipant(player Player, rw RecognitionOfWar) bool {
+	if player.Username == rw.Defender.Username {
+		fmt.Printf("%s, you published the war.\n", player.Username)
+		return false
+	}
+
+	if player.Username != rw.Attacker.Username && player.Username != rw.Defender.Username {
+		fmt.Printf("%s, you are not involved in this war.\n", player.Username)
+		return false
+	}
+
+	return true
+}
+
+func getUnitsAtLocation(units map[int]Unit, location Location) []Unit {
+	var locationUnits []Unit
+	for _, unit := range units {
+		if unit.Location == location {
+			locationUnits = append(locationUnits, unit)
+		}
+	}
+	return locationUnits
+}
+
+func displayWarUnits(username string, units []Unit) {
+	fmt.Printf("%s's units:\n", username)
+	for _, unit := range units {
+		fmt.Printf("  * %v\n", unit.Rank)
+	}
+}
+
+func calculatePowerLevel(units []Unit) int {
+	power := 0
+	for _, unit := range units {
+		power += UnitPower[unit.Rank]
+	}
+	return power
+}
+
+func determineWarOutcome(attackerPower, defenderPower int, rw RecognitionOfWar, currentPlayer string) (WarOutcome, string, string) {
 	if attackerPower > defenderPower {
 		fmt.Printf("%s has won the war!\n", rw.Attacker.Username)
-		if player.Username == rw.Defender.Username {
+		if currentPlayer == rw.Defender.Username {
 			fmt.Println("You have lost the war!")
-			gs.removeUnitsInLocation(overlappingLocation)
-			fmt.Printf("Your units in %s have been killed.\n", overlappingLocation)
 			return WarOutcomeOpponentWon, rw.Attacker.Username, rw.Defender.Username
 		}
 		return WarOutcomeYouWon, rw.Attacker.Username, rw.Defender.Username
 	} else if defenderPower > attackerPower {
 		fmt.Printf("%s has won the war!\n", rw.Defender.Username)
-		if player.Username == rw.Attacker.Username {
+		if currentPlayer == rw.Attacker.Username {
 			fmt.Println("You have lost the war!")
-			gs.removeUnitsInLocation(overlappingLocation)
-			fmt.Printf("Your units in %s have been killed.\n", overlappingLocation)
 			return WarOutcomeOpponentWon, rw.Defender.Username, rw.Attacker.Username
 		}
 		return WarOutcomeYouWon, rw.Defender.Username, rw.Attacker.Username
 	}
-	fmt.Println("The war ended in a draw!")
-	fmt.Printf("Your units in %s have been killed.\n", overlappingLocation)
-	gs.removeUnitsInLocation(overlappingLocation)
-	return WarOutcomeDraw, rw.Attacker.Username, rw.Defender.Username
-}
 
-func unitsToPowerLevel(units []Unit) int {
-	power := 0
-	for _, unit := range units {
-		if unit.Rank == RankArtillery {
-			power += 10
-		}
-		if unit.Rank == RankCavalry {
-			power += 5
-		}
-		if unit.Rank == RankInfantry {
-			power += 1
-		}
-	}
-	return power
+	fmt.Println("The war ended in a draw!")
+	return WarOutcomeDraw, rw.Attacker.Username, rw.Defender.Username
 }
