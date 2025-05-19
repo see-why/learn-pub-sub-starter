@@ -187,7 +187,15 @@ func handlerMove(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.
 		case gamelogic.MoveOutcomeMakeWar:
 			// Publish war message
 			warKey := fmt.Sprintf("%s.%s", routing.WarRecognitionsPrefix, gs.GetUsername())
-			err := pubsub.PublishJSON(channel, routing.ExchangePerilTopic, warKey, am)
+			err := pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilTopic,
+				warKey,
+				gamelogic.RecognitionOfWar{
+					Attacker: am.Player,
+					Defender: gs.GetPlayerSnap(),
+				},
+			)
 			if err != nil {
 				fmt.Printf("Failed to publish war message: %v\n", err)
 				return pubsub.NackRequeue
@@ -202,16 +210,11 @@ func handlerMove(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.
 	}
 }
 
-func handlerWar(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.ArmyMove) pubsub.AckType {
-	return func(am gamelogic.ArmyMove) pubsub.AckType {
+func handlerWar(gs *gamelogic.GameState, channel *amqp.Channel) func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
+	return func(dw gamelogic.RecognitionOfWar) pubsub.AckType {
 		defer fmt.Print("> ")
 
-		// Convert ArmyMove to RecognitionOfWar
-		recognition := gamelogic.RecognitionOfWar{
-			Attacker: am.Player,
-			Defender: gs.GetPlayerSnap(),
-		}
-		outcome, winner, loser := gs.HandleWar(recognition)
+		outcome, winner, loser := gs.HandleWar(dw)
 		switch outcome {
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackDiscard
