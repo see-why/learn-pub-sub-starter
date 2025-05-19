@@ -73,7 +73,7 @@ func isValidWarParticipant(player Player, rw RecognitionOfWar) bool {
 		return false
 	}
 
-	if player.Username != rw.Attacker.Username {
+	if player.Username != rw.Attacker.Username && player.Username != rw.Defender.Username {
 		fmt.Printf("%s, you are not involved in this war.\n", player.Username)
 		return false
 	}
