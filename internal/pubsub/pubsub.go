@@ -23,6 +23,11 @@ const (
 	DefaultPrefetchCount = 10
 )
 
+const (
+	QueueClassicType   = "classic"
+	QueueClassicQuorum = "quorum"
+)
+
 type AckType int
 
 const (
@@ -70,6 +75,10 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 	}
 
 	isTransient := simpleQueueType == Transient
+	queueType := QueueClassicQuorum
+	if isTransient {
+		queueType = QueueClassicType
+	}
 
 	queue, err := chn.QueueDeclare(
 		queueName,
@@ -79,6 +88,7 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 		false,
 		amqp.Table{
 			"x-dead-letter-exchange": routing.ExchangePerilDeadLetter,
+			"x-queue-type":           queueType,
 		},
 	)
 
@@ -115,7 +125,8 @@ func subscribe[T any](
 		return fmt.Errorf("failed to declare and bind: %w", err)
 	}
 
-	err = chn.Qos(DefaultPrefetchCount, 0, true)
+	// global is set to false because Quorum queues do not support the true value
+	err = chn.Qos(DefaultPrefetchCount, 0, false)
 	if err != nil {
 		return fmt.Errorf("failed to set prefetch count: %w", err)
 	}
