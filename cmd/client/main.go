@@ -176,12 +176,16 @@ func main() {
 					Username:    gameState.Player.Username,
 				}
 
-				pubsub.PublishGob(
+				err := pubsub.PublishGob(
 					channel,
 					routing.ExchangePerilTopic,
 					key,
 					logEntry,
 				)
+
+				if err != nil {
+					log.Printf("Failed to publish log exchange: %s key: %s: %v\n", routing.ExchangePerilTopic, key, err)
+				}
 			}
 
 		case "quit":
