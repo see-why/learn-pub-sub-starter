@@ -19,6 +19,10 @@ const (
 	Transient
 )
 
+const (
+	DefaultPrefetchCount = 10
+)
+
 type AckType int
 
 const (
@@ -109,6 +113,11 @@ func subscribe[T any](
 	chn, queue, err := DeclareAndBind(conn, exchange, queueName, key, simpleQueueType)
 	if err != nil {
 		return fmt.Errorf("failed to declare and bind: %w", err)
+	}
+
+	err = chn.Qos(DefaultPrefetchCount, 0, true)
+	if err != nil {
+		return fmt.Errorf("failed to set prefetch count: %w", err)
 	}
 
 	msgs, err := chn.Consume(
