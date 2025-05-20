@@ -111,7 +111,7 @@ func subscribe[T any](
 		return fmt.Errorf("failed to declare and bind: %w", err)
 	}
 
-	err = chn.Qos(10, 10, true)
+	err = chn.Qos(10, 0, true)
 	if err != nil {
 		return fmt.Errorf("failed to set prefetch count: %w", err)
 	}
