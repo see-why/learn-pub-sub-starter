@@ -125,7 +125,7 @@ func subscribe[T any](
 		return fmt.Errorf("failed to declare and bind: %w", err)
 	}
 
-	// global is set to false because Quorum queues not not support the true value
+	// global is set to false because Quorum queues do not support the true value
 	err = chn.Qos(DefaultPrefetchCount, 0, false)
 	if err != nil {
 		return fmt.Errorf("failed to set prefetch count: %w", err)
