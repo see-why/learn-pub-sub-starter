@@ -70,6 +70,10 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 	}
 
 	isTransient := simpleQueueType == Transient
+	queueType := "quorum"
+	if isTransient {
+		queueType = "classic"
+	}
 
 	queue, err := chn.QueueDeclare(
 		queueName,
@@ -79,6 +83,7 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 		false,
 		amqp.Table{
 			"x-dead-letter-exchange": routing.ExchangePerilDeadLetter,
+			"x-queue-type":           queueType,
 		},
 	)
 
@@ -115,7 +120,7 @@ func subscribe[T any](
 		return fmt.Errorf("failed to declare and bind: %w", err)
 	}
 
-	err = chn.Qos(DefaultPrefetchCount, 0, true)
+	err = chn.Qos(DefaultPrefetchCount, 0, false)
 	if err != nil {
 		return fmt.Errorf("failed to set prefetch count: %w", err)
 	}
