@@ -23,6 +23,11 @@ const (
 	DefaultPrefetchCount = 10
 )
 
+const (
+	QueueClassicType   = "classic"
+	QueueClassicQuorum = "quorum"
+)
+
 type AckType int
 
 const (
@@ -70,9 +75,9 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, simp
 	}
 
 	isTransient := simpleQueueType == Transient
-	queueType := "quorum"
+	queueType := QueueClassicQuorum
 	if isTransient {
-		queueType = "classic"
+		queueType = QueueClassicType
 	}
 
 	queue, err := chn.QueueDeclare(
