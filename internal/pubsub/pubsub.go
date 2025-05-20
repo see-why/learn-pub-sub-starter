@@ -111,6 +111,11 @@ func subscribe[T any](
 		return fmt.Errorf("failed to declare and bind: %w", err)
 	}
 
+	err = chn.Qos(10, 10, true)
+	if err != nil {
+		return fmt.Errorf("failed to set prefetch count: %w", err)
+	}
+
 	msgs, err := chn.Consume(
 		queue.Name,
 		"",
