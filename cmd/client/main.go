@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -88,7 +90,6 @@ func main() {
 	// Create new game state
 	gameState := gamelogic.NewGameState(username)
 	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, queueName, routing.PauseKey, pubsub.Transient, handlerPause(gameState))
-
 	if err != nil {
 		log.Fatalf("Failed to subscribe to queue: %s\n", err)
 	}
@@ -153,7 +154,34 @@ func main() {
 			gamelogic.PrintClientHelp()
 
 		case "spam":
-			fmt.Println("Spamming not allowed yet!")
+			if len(words) != 2 {
+				fmt.Println("Usage: spam <count>")
+				continue
+			}
+
+			count, err := strconv.Atoi(words[1])
+
+			if err != nil {
+				fmt.Printf("Failed to parse %s, error: %w", words[1], err)
+			}
+
+			for i := 0; i < count; i++ {
+				msg := gamelogic.GetMaliciousLog()
+				key := fmt.Sprintf("%s.%s", routing.GameLogSlug, username)
+
+				logEntry := routing.GameLog{
+					CurrentTime: time.Now(),
+					Message:     msg,
+					Username:    gameState.Player.Username,
+				}
+
+				pubsub.PublishGob(
+					channel,
+					routing.ExchangePerilTopic,
+					key,
+					logEntry,
+				)
+			}
 
 		case "quit":
 			gamelogic.PrintQuit()
