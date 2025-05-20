@@ -162,7 +162,8 @@ func main() {
 			count, err := strconv.Atoi(words[1])
 
 			if err != nil {
-				fmt.Printf("Failed to parse %s, error: %w", words[1], err)
+				fmt.Printf("Failed to parse %s, error: %v", words[1], err)
+				continue
 			}
 
 			for i := 0; i < count; i++ {
