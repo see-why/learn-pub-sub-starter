@@ -19,6 +19,10 @@ const (
 	Transient
 )
 
+const (
+	DefaultPrefetchCount = 10
+)
+
 type AckType int
 
 const (
@@ -111,7 +115,7 @@ func subscribe[T any](
 		return fmt.Errorf("failed to declare and bind: %w", err)
 	}
 
-	err = chn.Qos(10, 0, true)
+	err = chn.Qos(DefaultPrefetchCount, 0, true)
 	if err != nil {
 		return fmt.Errorf("failed to set prefetch count: %w", err)
 	}
