@@ -30,10 +30,12 @@ cd learn-pub-sub-starter
 go mod download
 ```
 
-3. Ensure RabbitMQ is running:
+3. Create a `.env` file in the root directory with your RabbitMQ connection string:
 ```bash
-# Default connection string: amqp://guest:guest@localhost:5672/
+echo "RABBITMQ_URL=url" > .env
 ```
+
+4. Ensure RabbitMQ is running and accessible at the URL specified in your `.env` file.
 
 ## Running the Game
 

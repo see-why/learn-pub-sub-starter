@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -10,13 +11,22 @@ import (
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
+	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
 	fmt.Println("Starting Peril client...")
 
-	connectionString := "amqp://guest:guest@localhost:5672/"
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found")
+	}
+
+	connectionString := godotenv.Get("RABBITMQ_URL")
+	if connectionString == "" {
+		log.Fatal("Failed to get environment variable RABBITMQ_URL: \n")
+	}
+
 	conn, err := amqp.Dial(connectionString)
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %s\n", err)
